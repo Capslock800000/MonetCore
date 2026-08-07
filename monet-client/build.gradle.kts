@@ -25,12 +25,11 @@ android {
 
     kotlin {
         jvmToolchain(17)
-    }
-
-    kotlinOptions {
-        freeCompilerArgs += listOf(
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi"
-        )
+        compilerOptions {
+            freeCompilerArgs.addAll(
+                "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi"
+            )
+        }
     }
 
     compileOptions {
