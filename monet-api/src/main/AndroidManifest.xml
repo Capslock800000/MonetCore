@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <permission
+        android:name="com.monettheme.permission.GENERATE_THEME"
+        android:label="@string/permission_generate_theme_label"
+        android:description="@string/permission_generate_theme_desc"
+        android:protectionLevel="dangerous" />
+</manifest>
