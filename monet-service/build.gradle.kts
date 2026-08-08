@@ -18,7 +18,12 @@ android {
     // ===== 签名配置 =====
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "monet-release.keystore")
+            val keystorePath = System.getenv("KEYSTORE_PATH")
+            storeFile = when {
+                keystorePath != null -> file(keystorePath)
+                file("MonetCoreSignKey.jks").exists() -> file("MonetCoreSignKey.jks")
+                else -> file("monet-release.keystore")
+            }
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "monet123"
             keyAlias = System.getenv("KEY_ALIAS") ?: "monet"
             keyPassword = System.getenv("KEY_PASSWORD") ?: "monet123"
