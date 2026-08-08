@@ -1,6 +1,7 @@
 plugins {
     id("com.android.library")
-    kotlin("plugin.parcelize")
+    kotlin("android")           // ← 必须显式声明
+    kotlin("plugin.parcelize")  // ← 依赖上面的 kotlin("android")
 }
 
 android {
@@ -22,7 +23,6 @@ android {
         aidl = true
     }
 
-    // AGP 9.x 内置 Kotlin 编译器配置
     kotlin {
         jvmToolchain(17)
     }
