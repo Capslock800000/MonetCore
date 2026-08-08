@@ -1,7 +1,6 @@
 plugins {
     id("com.android.library")
-    kotlin("android")           // ← 必须显式声明
-    kotlin("plugin.parcelize")  // ← 依赖上面的 kotlin("android")
+    kotlin("plugin.parcelize")
 }
 
 android {
