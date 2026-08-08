@@ -1,6 +1,6 @@
 plugins {
     id("com.android.library")
-    kotlin("plugin.parcelize") version "2.1.0"
+    kotlin("plugin.parcelize")
 }
 
 android {
