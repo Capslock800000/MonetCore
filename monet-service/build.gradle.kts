@@ -15,10 +15,25 @@ android {
         versionName = "1.0.0"
     }
 
+    // ===== 签名配置 =====
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "monet-release.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "monet123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "monet"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "monet123"
+        }
+    }
+
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -60,4 +75,5 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.core.ktx)
     implementation("androidx.palette:palette:1.0.0")
+    implementation("com.google.android.material:material-color-utilities:1.0.0")
 }

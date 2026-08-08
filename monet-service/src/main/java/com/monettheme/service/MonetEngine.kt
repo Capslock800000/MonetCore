@@ -5,185 +5,184 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
 import android.os.Build
-import androidx.core.graphics.ColorUtils
+import android.util.Log
 import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
+import com.google.android.material.color.utilities.DynamicScheme
+import com.google.android.material.color.utilities.Hct
+import com.google.android.material.color.utilities.MaterialDynamicColors
+import com.google.android.material.color.utilities.SchemeTonalSpot
 import com.monettheme.api.ThemeColors
-import kotlin.math.max
-import kotlin.math.min
+
+private const val TAG = "MonetEngine"
 
 /**
- * Monet 颜色引擎
+ * Monet 颜色引擎 — 基于 Google 官方 HCT 实现
  *
- * - Android 12+ (API 31): 使用系统 WallpaperColors
- * - Android 9-11 (API 28-30): Palette API + HSL 近似 HCT 算法
+ * - Android 12+ (API 31): 优先使用系统 WallpaperColors 提取 seed
+ * - Android 9-11 (API 28-30): Palette API 提取 seed + HCT 生成
+ * - 手动图片: 直接提取 seed + HCT 生成
+ *
+ * 核心依赖: com.google.android.material:material-color-utilities
+ * 色彩空间: HCT (Hue-Chroma-Tone) — 基于 CAM16 感知模型
  */
 class MonetEngine(private val context: Context) {
 
     private val wallpaperManager = WallpaperManager.getInstance(context)
+    private val materialColors = MaterialDynamicColors()
 
+    /**
+     * 从系统壁纸生成主题
+     */
     fun generateFromWallpaper(darkTheme: Boolean): ThemeColors {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            generateFromSystemWallpaper(darkTheme)
-        } else {
-            generateFromLegacyWallpaper(darkTheme)
-        }
+        Log.d(TAG, "generateFromWallpaper, dark=$darkTheme")
+        val seedColor = extractSeedColor()
+        return generateFromColor(seedColor, darkTheme)
     }
 
+    /**
+     * 从指定颜色生成主题（HCT 精确算法）
+     */
     fun generateFromColor(seedColor: Int, darkTheme: Boolean): ThemeColors {
-        return createColorScheme(seedColor, darkTheme)
+        Log.d(TAG, "generateFromColor, seed=#${Integer.toHexString(seedColor)}, dark=$darkTheme")
+        val hct = Hct.fromInt(seedColor)
+        val scheme = SchemeTonalSpot(hct, darkTheme, 0.0)
+        return schemeToThemeColors(scheme, seedColor, darkTheme)
     }
 
+    /**
+     * 从 Bitmap 生成主题
+     */
+    fun generateFromBitmap(bitmap: Bitmap, darkTheme: Boolean): ThemeColors {
+        Log.d(TAG, "generateFromBitmap, size=${bitmap.width}x${bitmap.height}")
+        val palette = Palette.from(bitmap).maximumColorCount(32).generate()
+        val seedColor = extractFromPalette(palette)
+        Log.d(TAG, "bitmap seed=#${Integer.toHexString(seedColor)}")
+        return generateFromColor(seedColor, darkTheme)
+    }
+
+    /**
+     * 从 URI 生成主题
+     */
+    fun generateFromUri(uri: Uri, darkTheme: Boolean): ThemeColors {
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            val bitmap = android.graphics.BitmapFactory.decodeStream(stream)
+            if (bitmap != null) {
+                return generateFromBitmap(bitmap, darkTheme)
+            }
+        }
+        return generateFromWallpaper(darkTheme)
+    }
+
+    /**
+     * 获取当前调色板（Map 格式，供 AIDL API 使用）
+     */
     fun getCurrentPalette(): Map<String, Int> {
         val seedColor = extractSeedColor()
-        val hsl = FloatArray(3)
-        ColorUtils.colorToHSL(seedColor, hsl)
+        val hct = Hct.fromInt(seedColor)
+        val scheme = SchemeTonalSpot(hct, false, 0.0)
         return buildMap {
             put("seed", seedColor)
-            put("primary", seedColor)
-            put("secondary", harmonize(hsl[0], hsl[1], hsl[2], 0f, 0.6f))
-            put("tertiary", harmonize(hsl[0], hsl[1], hsl[2], 60f, 0.7f))
-            put("neutral", harmonize(hsl[0], hsl[1], hsl[2], 0f, 0.08f))
-            put("neutralVariant", harmonize(hsl[0], hsl[1], hsl[2], 0f, 0.12f))
+            put("primary", materialColors.primary().getArgb(scheme))
+            put("secondary", materialColors.secondary().getArgb(scheme))
+            put("tertiary", materialColors.tertiary().getArgb(scheme))
+            put("error", materialColors.error().getArgb(scheme))
+            put("neutral", materialColors.surface().getArgb(scheme))
+            put("neutralVariant", materialColors.surfaceVariant().getArgb(scheme))
         }
     }
 
-    private fun generateFromSystemWallpaper(darkTheme: Boolean): ThemeColors {
-        val seedColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val colors = wallpaperManager.getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
-            colors?.primaryColor?.toArgb()
-                ?: colors?.secondaryColor?.toArgb()
-                ?: Color.parseColor("#6750A4")
-        } else Color.parseColor("#6750A4")
-        return createColorScheme(seedColor, darkTheme)
-    }
-
-    private fun generateFromLegacyWallpaper(darkTheme: Boolean): ThemeColors {
-        val seedColor = extractSeedColor()
-        return createColorScheme(seedColor, darkTheme)
-    }
+    // ==================== 私有方法 ====================
 
     private fun extractSeedColor(): Int {
+        // Android 12+: 使用系统 WallpaperColors API
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                val colors = wallpaperManager.getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
+                val color = colors?.primaryColor?.toArgb()
+                    ?: colors?.secondaryColor?.toArgb()
+                if (color != null) {
+                    Log.d(TAG, "System WallpaperColors seed=#${Integer.toHexString(color)}")
+                    return color
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "getWallpaperColors failed, fallback to Palette", e)
+            }
+        }
+
+        // Android 9-11: 使用 Palette API
         return try {
             val drawable = wallpaperManager.drawable
-                ?: return Color.parseColor("#6750A4")
+            if (drawable == null) {
+                Log.w(TAG, "wallpaperManager.drawable is null, fallback to default")
+                return DEFAULT_SEED
+            }
+
             val bitmap = when (drawable) {
                 is BitmapDrawable -> drawable.bitmap
                 else -> drawable.toBitmap(256, 256, Bitmap.Config.ARGB_8888)
             }
+
             val palette = Palette.from(bitmap).maximumColorCount(32).generate()
-            palette.vibrantSwatch?.rgb
-                ?: palette.lightVibrantSwatch?.rgb
-                ?: palette.darkVibrantSwatch?.rgb
-                ?: palette.dominantSwatch?.rgb
-                ?: Color.parseColor("#6750A4")
+            val color = extractFromPalette(palette)
+            Log.d(TAG, "Palette seed=#${Integer.toHexString(color)}")
+            color
         } catch (e: Exception) {
-            Color.parseColor("#6750A4")
+            Log.e(TAG, "extractSeedColor failed", e)
+            DEFAULT_SEED
         }
     }
 
-    private fun createColorScheme(seedColor: Int, darkTheme: Boolean): ThemeColors {
-        val seedHsl = FloatArray(3)
-        ColorUtils.colorToHSL(seedColor, seedHsl)
-
-        val primaryPalette = TonalPalette(seedHsl[0], max(seedHsl[1], 0.45f))
-        val secondaryPalette = TonalPalette(seedHsl[0], max(seedHsl[1] * 0.55f, 0.18f))
-        val tertiaryPalette = TonalPalette(rotateHue(seedHsl[0], 60f), max(seedHsl[1] * 0.65f, 0.28f))
-        val neutralPalette = TonalPalette(seedHsl[0], min(seedHsl[1] * 0.08f, 0.04f))
-        val neutralVariantPalette = TonalPalette(seedHsl[0], min(seedHsl[1] * 0.12f, 0.07f))
-        val errorPalette = TonalPalette(10f, 0.78f)
-
-        return if (darkTheme) {
-            ThemeColors(
-                primary = primaryPalette.tone(80),
-                onPrimary = primaryPalette.tone(20),
-                primaryContainer = primaryPalette.tone(30),
-                onPrimaryContainer = primaryPalette.tone(90),
-                secondary = secondaryPalette.tone(80),
-                onSecondary = secondaryPalette.tone(20),
-                secondaryContainer = secondaryPalette.tone(30),
-                onSecondaryContainer = secondaryPalette.tone(90),
-                tertiary = tertiaryPalette.tone(80),
-                onTertiary = tertiaryPalette.tone(20),
-                tertiaryContainer = tertiaryPalette.tone(30),
-                onTertiaryContainer = tertiaryPalette.tone(90),
-                error = errorPalette.tone(80),
-                onError = errorPalette.tone(20),
-                errorContainer = errorPalette.tone(30),
-                onErrorContainer = errorPalette.tone(90),
-                background = neutralPalette.tone(10),
-                onBackground = neutralPalette.tone(90),
-                surface = neutralPalette.tone(10),
-                onSurface = neutralPalette.tone(90),
-                surfaceVariant = neutralVariantPalette.tone(30),
-                onSurfaceVariant = neutralVariantPalette.tone(80),
-                outline = neutralVariantPalette.tone(60),
-                outlineVariant = neutralVariantPalette.tone(30),
-                inverseSurface = neutralPalette.tone(90),
-                inverseOnSurface = neutralPalette.tone(10),
-                inversePrimary = primaryPalette.tone(40),
-                surfaceTint = primaryPalette.tone(80),
-                scrim = neutralPalette.tone(0),
-                seedColor = seedColor,
-                isDarkTheme = true
-            )
-        } else {
-            ThemeColors(
-                primary = primaryPalette.tone(40),
-                onPrimary = primaryPalette.tone(100),
-                primaryContainer = primaryPalette.tone(90),
-                onPrimaryContainer = primaryPalette.tone(10),
-                secondary = secondaryPalette.tone(40),
-                onSecondary = secondaryPalette.tone(100),
-                secondaryContainer = secondaryPalette.tone(90),
-                onSecondaryContainer = secondaryPalette.tone(10),
-                tertiary = tertiaryPalette.tone(40),
-                onTertiary = tertiaryPalette.tone(100),
-                tertiaryContainer = tertiaryPalette.tone(90),
-                onTertiaryContainer = tertiaryPalette.tone(10),
-                error = errorPalette.tone(40),
-                onError = errorPalette.tone(100),
-                errorContainer = errorPalette.tone(90),
-                onErrorContainer = errorPalette.tone(10),
-                background = neutralPalette.tone(99),
-                onBackground = neutralPalette.tone(10),
-                surface = neutralPalette.tone(99),
-                onSurface = neutralPalette.tone(10),
-                surfaceVariant = neutralVariantPalette.tone(90),
-                onSurfaceVariant = neutralVariantPalette.tone(30),
-                outline = neutralVariantPalette.tone(50),
-                outlineVariant = neutralVariantPalette.tone(80),
-                inverseSurface = neutralPalette.tone(20),
-                inverseOnSurface = neutralPalette.tone(95),
-                inversePrimary = primaryPalette.tone(80),
-                surfaceTint = primaryPalette.tone(40),
-                scrim = neutralPalette.tone(0),
-                seedColor = seedColor,
-                isDarkTheme = false
-            )
-        }
+    private fun extractFromPalette(palette: Palette): Int {
+        return palette.vibrantSwatch?.rgb
+            ?: palette.lightVibrantSwatch?.rgb
+            ?: palette.darkVibrantSwatch?.rgb
+            ?: palette.dominantSwatch?.rgb
+            ?: DEFAULT_SEED
     }
 
-    private class TonalPalette(private val hue: Float, private val saturation: Float) {
-        fun tone(toneValue: Int): Int {
-            val lightness = when (toneValue) {
-                0 -> 0.00f; 10 -> 0.08f; 20 -> 0.15f; 30 -> 0.25f; 40 -> 0.38f
-                50 -> 0.50f; 60 -> 0.60f; 70 -> 0.70f; 80 -> 0.80f; 90 -> 0.92f
-                95 -> 0.96f; 99 -> 0.99f; 100 -> 1.00f
-                else -> toneValue / 100f
-            }
-            return ColorUtils.HSLToColor(floatArrayOf(hue, saturation.coerceIn(0f, 1f), lightness.coerceIn(0f, 1f)))
-        }
+    /**
+     * 将 DynamicScheme 映射为 ThemeColors（28 色角色）
+     */
+    private fun schemeToThemeColors(scheme: DynamicScheme, seedColor: Int, darkTheme: Boolean): ThemeColors {
+        return ThemeColors(
+            primary = materialColors.primary().getArgb(scheme),
+            onPrimary = materialColors.onPrimary().getArgb(scheme),
+            primaryContainer = materialColors.primaryContainer().getArgb(scheme),
+            onPrimaryContainer = materialColors.onPrimaryContainer().getArgb(scheme),
+            secondary = materialColors.secondary().getArgb(scheme),
+            onSecondary = materialColors.onSecondary().getArgb(scheme),
+            secondaryContainer = materialColors.secondaryContainer().getArgb(scheme),
+            onSecondaryContainer = materialColors.onSecondaryContainer().getArgb(scheme),
+            tertiary = materialColors.tertiary().getArgb(scheme),
+            onTertiary = materialColors.onTertiary().getArgb(scheme),
+            tertiaryContainer = materialColors.tertiaryContainer().getArgb(scheme),
+            onTertiaryContainer = materialColors.onTertiaryContainer().getArgb(scheme),
+            error = materialColors.error().getArgb(scheme),
+            onError = materialColors.onError().getArgb(scheme),
+            errorContainer = materialColors.errorContainer().getArgb(scheme),
+            onErrorContainer = materialColors.onErrorContainer().getArgb(scheme),
+            background = materialColors.background().getArgb(scheme),
+            onBackground = materialColors.onBackground().getArgb(scheme),
+            surface = materialColors.surface().getArgb(scheme),
+            onSurface = materialColors.onSurface().getArgb(scheme),
+            surfaceVariant = materialColors.surfaceVariant().getArgb(scheme),
+            onSurfaceVariant = materialColors.onSurfaceVariant().getArgb(scheme),
+            outline = materialColors.outline().getArgb(scheme),
+            outlineVariant = materialColors.outlineVariant().getArgb(scheme),
+            inverseSurface = materialColors.inverseSurface().getArgb(scheme),
+            inverseOnSurface = materialColors.inverseOnSurface().getArgb(scheme),
+            inversePrimary = materialColors.inversePrimary().getArgb(scheme),
+            surfaceTint = materialColors.surfaceTint().getArgb(scheme),
+            scrim = materialColors.scrim().getArgb(scheme),
+            seedColor = seedColor,
+            isDarkTheme = darkTheme
+        )
     }
 
-    private fun rotateHue(hue: Float, degrees: Float): Float {
-        var result = (hue + degrees) % 360f
-        if (result < 0) result += 360f
-        return result
-    }
-
-    private fun harmonize(h: Float, s: Float, l: Float, hueShift: Float, satScale: Float): Int {
-        return ColorUtils.HSLToColor(floatArrayOf(rotateHue(h, hueShift), (s * satScale).coerceIn(0f, 1f), l.coerceIn(0f, 1f)))
+    companion object {
+        private const val DEFAULT_SEED = 0xFF6750A4.toInt()
     }
 }

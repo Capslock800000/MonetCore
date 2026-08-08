@@ -3,10 +3,14 @@
 package com.monettheme.service
 
 import android.content.res.Configuration
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +49,12 @@ class MainActivity : ComponentActivity() {
             val isDark = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                     Configuration.UI_MODE_NIGHT_YES
 
+            val imagePicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri: Uri? ->
+                uri?.let { processImageUri(it, isDark) }
+            }
+
             LaunchedEffect(isDark) {
                 refreshTheme(isDark)
             }
@@ -54,7 +64,8 @@ class MainActivity : ComponentActivity() {
                     ServiceScreen(
                         colors = colors,
                         onRefresh = { refreshTheme(colors.isDarkTheme) },
-                        onToggleTheme = { refreshTheme(!colors.isDarkTheme) }
+                        onToggleTheme = { refreshTheme(!colors.isDarkTheme) },
+                        onPickImage = { imagePicker.launch("image/*") }
                     )
                 }
             } ?: run {
@@ -65,6 +76,26 @@ class MainActivity : ComponentActivity() {
                     CircularProgressIndicator()
                 }
             }
+        }
+    }
+
+    private fun processImageUri(uri: Uri, dark: Boolean) {
+        lifecycleScope.launch {
+            val colors = withContext(Dispatchers.IO) {
+                try {
+                    contentResolver.openInputStream(uri)?.use { stream ->
+                        val bitmap = BitmapFactory.decodeStream(stream)
+                        if (bitmap != null) {
+                            engine.generateFromBitmap(bitmap, dark)
+                        } else {
+                            engine.generateFromWallpaper(dark)
+                        }
+                    } ?: engine.generateFromWallpaper(dark)
+                } catch (e: Exception) {
+                    engine.generateFromWallpaper(dark)
+                }
+            }
+            _themeState.update { colors }
         }
     }
 
@@ -82,7 +113,8 @@ class MainActivity : ComponentActivity() {
 fun ServiceScreen(
     colors: ThemeColors,
     onRefresh: () -> Unit,
-    onToggleTheme: () -> Unit
+    onToggleTheme: () -> Unit,
+    onPickImage: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
 
@@ -114,7 +146,7 @@ fun ServiceScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatusCard(colors, onToggleTheme)
+            StatusCard(colors, onToggleTheme, onPickImage)
 
             Text("Primary 族", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             ColorRow(
@@ -164,7 +196,11 @@ fun ServiceScreen(
 }
 
 @Composable
-fun StatusCard(colors: ThemeColors, onToggle: () -> Unit) {
+fun StatusCard(
+    colors: ThemeColors,
+    onToggle: () -> Unit,
+    onPickImage: () -> Unit
+) {
     val scheme = MaterialTheme.colorScheme
     val mode = if (colors.isDarkTheme) "深色模式" else "浅色模式"
     val api = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
@@ -191,14 +227,24 @@ fun StatusCard(colors: ThemeColors, onToggle: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = onToggle,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = scheme.primary,
-                    contentColor = scheme.onPrimary
-                )
-            ) {
-                Text("切换 浅色/深色")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onToggle,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = scheme.primary,
+                        contentColor = scheme.onPrimary
+                    )
+                ) {
+                    Text("切换 浅色/深色")
+                }
+                OutlinedButton(
+                    onClick = onPickImage,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = scheme.onPrimaryContainer
+                    )
+                ) {
+                    Text("选择图片")
+                }
             }
         }
     }
