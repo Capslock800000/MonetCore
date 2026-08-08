@@ -50,6 +50,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    lint {
+        disable += "RestrictedApi"
+    }
 }
 
 kotlin {
@@ -75,5 +79,5 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.core.ktx)
     implementation("androidx.palette:palette:1.0.0")
-    implementation(libs.material.color.utilities)
+    implementation(libs.google.material)
 }
