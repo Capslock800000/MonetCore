@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
-
 package com.monettheme.service
 
 import android.content.res.Configuration
@@ -12,7 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.expressive.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,7 +48,7 @@ class MainActivity : ComponentActivity() {
             }
 
             theme?.let { colors ->
-                MonetServiceTheme(seedColor = Color(colors.seedColor), darkTheme = colors.isDarkTheme) {
+                MonetServiceTheme(colors = colors, darkTheme = colors.isDarkTheme) {
                     ServiceScreen(
                         colors = colors,
                         onRefresh = { refreshTheme(colors.isDarkTheme) },
@@ -63,7 +60,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    ExpressiveCircularProgressIndicator()
+                    CircularProgressIndicator()
                 }
             }
         }
@@ -89,16 +86,16 @@ fun ServiceScreen(
 
     Scaffold(
         topBar = {
-            ExpressiveTopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text("Monet Theme Service", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = scheme.primary,
                     titleContentColor = scheme.onPrimary
                 )
             )
         },
         floatingActionButton = {
-            ExpressiveFloatingActionButton(
+            FloatingActionButton(
                 onClick = onRefresh,
                 containerColor = scheme.primaryContainer,
                 contentColor = scheme.onPrimaryContainer
@@ -143,7 +140,7 @@ fun ServiceScreen(
                 )
             )
 
-            ExpressiveCard(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = scheme.surfaceVariant)
             ) {
@@ -171,7 +168,7 @@ fun StatusCard(colors: ThemeColors, onToggle: () -> Unit) {
     val api = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
         "系统 Monet (Android 12+)" else "兼容 Monet (Android 9-11)"
 
-    ExpressiveCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = scheme.primaryContainer)
     ) {
@@ -192,7 +189,7 @@ fun StatusCard(colors: ThemeColors, onToggle: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(modifier = Modifier.height(8.dp))
-            ExpressiveButton(
+            Button(
                 onClick = onToggle,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = scheme.primary,
@@ -228,19 +225,79 @@ fun ColorRow(items: List<Triple<String, Color, Color>>) {
 
 @Composable
 fun MonetServiceTheme(
-    seedColor: Color,
+    colors: ThemeColors,
     darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) {
-        dynamicDarkColorScheme(seedColor)
+        darkColorScheme(
+            primary = Color(colors.primary),
+            onPrimary = Color(colors.onPrimary),
+            primaryContainer = Color(colors.primaryContainer),
+            onPrimaryContainer = Color(colors.onPrimaryContainer),
+            secondary = Color(colors.secondary),
+            onSecondary = Color(colors.onSecondary),
+            secondaryContainer = Color(colors.secondaryContainer),
+            onSecondaryContainer = Color(colors.onSecondaryContainer),
+            tertiary = Color(colors.tertiary),
+            onTertiary = Color(colors.onTertiary),
+            tertiaryContainer = Color(colors.tertiaryContainer),
+            onTertiaryContainer = Color(colors.onTertiaryContainer),
+            error = Color(colors.error),
+            onError = Color(colors.onError),
+            errorContainer = Color(colors.errorContainer),
+            onErrorContainer = Color(colors.onErrorContainer),
+            background = Color(colors.background),
+            onBackground = Color(colors.onBackground),
+            surface = Color(colors.surface),
+            onSurface = Color(colors.onSurface),
+            surfaceVariant = Color(colors.surfaceVariant),
+            onSurfaceVariant = Color(colors.onSurfaceVariant),
+            outline = Color(colors.outline),
+            outlineVariant = Color(colors.outlineVariant),
+            inverseSurface = Color(colors.inverseSurface),
+            inverseOnSurface = Color(colors.inverseOnSurface),
+            inversePrimary = Color(colors.inversePrimary),
+            surfaceTint = Color(colors.surfaceTint),
+            scrim = Color(colors.scrim),
+        )
     } else {
-        dynamicLightColorScheme(seedColor)
+        lightColorScheme(
+            primary = Color(colors.primary),
+            onPrimary = Color(colors.onPrimary),
+            primaryContainer = Color(colors.primaryContainer),
+            onPrimaryContainer = Color(colors.onPrimaryContainer),
+            secondary = Color(colors.secondary),
+            onSecondary = Color(colors.onSecondary),
+            secondaryContainer = Color(colors.secondaryContainer),
+            onSecondaryContainer = Color(colors.onSecondaryContainer),
+            tertiary = Color(colors.tertiary),
+            onTertiary = Color(colors.onTertiary),
+            tertiaryContainer = Color(colors.tertiaryContainer),
+            onTertiaryContainer = Color(colors.onTertiaryContainer),
+            error = Color(colors.error),
+            onError = Color(colors.onError),
+            errorContainer = Color(colors.errorContainer),
+            onErrorContainer = Color(colors.onErrorContainer),
+            background = Color(colors.background),
+            onBackground = Color(colors.onBackground),
+            surface = Color(colors.surface),
+            onSurface = Color(colors.onSurface),
+            surfaceVariant = Color(colors.surfaceVariant),
+            onSurfaceVariant = Color(colors.onSurfaceVariant),
+            outline = Color(colors.outline),
+            outlineVariant = Color(colors.outlineVariant),
+            inverseSurface = Color(colors.inverseSurface),
+            inverseOnSurface = Color(colors.inverseOnSurface),
+            inversePrimary = Color(colors.inversePrimary),
+            surfaceTint = Color(colors.surfaceTint),
+            scrim = Color(colors.scrim),
+        )
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = ExpressiveTypography(),
+        typography = Typography(),
         content = content
     )
 }
