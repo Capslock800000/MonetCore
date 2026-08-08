@@ -75,5 +75,5 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.core.ktx)
     implementation("androidx.palette:palette:1.0.0")
-    implementation("com.google.android.material:material-color-utilities:1.0.0")
+    implementation(libs.material.color.utilities)
 }
