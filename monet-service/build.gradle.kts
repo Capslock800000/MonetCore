@@ -54,9 +54,11 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material3.expressive)
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.core.ktx)
     implementation("androidx.palette:palette:1.0.0")
 }

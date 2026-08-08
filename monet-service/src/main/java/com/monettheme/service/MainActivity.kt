@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.monettheme.service
 
 import android.content.res.Configuration
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.monettheme.api.ThemeColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,37 +115,34 @@ fun ServiceScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // 状态卡片
             StatusCard(colors, onToggleTheme)
 
-            // 颜色族展示
             Text("Primary 族", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             ColorRow(
                 listOf(
-                    "Primary" to Color(colors.primary) to Color(colors.onPrimary),
-                    "On Primary" to Color(colors.onPrimary) to Color(colors.primary),
-                    "Container" to Color(colors.primaryContainer) to Color(colors.onPrimaryContainer)
+                    Triple("Primary", Color(colors.primary), Color(colors.onPrimary)),
+                    Triple("On Primary", Color(colors.onPrimary), Color(colors.primary)),
+                    Triple("Container", Color(colors.primaryContainer), Color(colors.onPrimaryContainer))
                 )
             )
 
             Text("Secondary 族", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             ColorRow(
                 listOf(
-                    "Secondary" to Color(colors.secondary) to Color(colors.onSecondary),
-                    "Container" to Color(colors.secondaryContainer) to Color(colors.onSecondaryContainer)
+                    Triple("Secondary", Color(colors.secondary), Color(colors.onSecondary)),
+                    Triple("Container", Color(colors.secondaryContainer), Color(colors.onSecondaryContainer))
                 )
             )
 
             Text("Tertiary / Error / Surface", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             ColorRow(
                 listOf(
-                    "Tertiary" to Color(colors.tertiary) to Color(colors.onTertiary),
-                    "Error" to Color(colors.error) to Color(colors.onError),
-                    "Surface" to Color(colors.surface) to Color(colors.onSurface)
+                    Triple("Tertiary", Color(colors.tertiary), Color(colors.onTertiary)),
+                    Triple("Error", Color(colors.error), Color(colors.onError)),
+                    Triple("Surface", Color(colors.surface), Color(colors.onSurface))
                 )
             )
 
-            // API 说明
             ExpressiveCard(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = scheme.surfaceVariant)
@@ -206,13 +206,12 @@ fun StatusCard(colors: ThemeColors, onToggle: () -> Unit) {
 }
 
 @Composable
-fun ColorRow(items: List<Pair<Pair<String, Color>, Color>>) {
+fun ColorRow(items: List<Triple<String, Color, Color>>) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items.forEach { (pair, textColor) ->
-            val (name, bg) = pair
+        items.forEach { (name, bg, textColor) ->
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -233,7 +232,6 @@ fun MonetServiceTheme(
     darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
-    // 使用 MD3E 的动态主题生成
     val colorScheme = if (darkTheme) {
         dynamicDarkColorScheme(seedColor)
     } else {

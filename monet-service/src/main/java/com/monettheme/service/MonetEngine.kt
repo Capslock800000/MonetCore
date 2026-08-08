@@ -4,6 +4,7 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.ColorUtils
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import androidx.core.graphics.drawable.toBitmap
@@ -37,7 +38,7 @@ class MonetEngine(private val context: Context) {
     fun getCurrentPalette(): Map<String, Int> {
         val seedColor = extractSeedColor()
         val hsl = FloatArray(3)
-        android.graphics.ColorUtils.colorToHSL(seedColor, hsl)
+        ColorUtils.colorToHSL(seedColor, hsl)
         return buildMap {
             put("seed", seedColor)
             put("primary", seedColor)
@@ -66,6 +67,7 @@ class MonetEngine(private val context: Context) {
     private fun extractSeedColor(): Int {
         return try {
             val drawable = wallpaperManager.drawable
+                ?: return Color.parseColor("#6750A4")
             val bitmap = when (drawable) {
                 is BitmapDrawable -> drawable.bitmap
                 else -> drawable.toBitmap(256, 256, Bitmap.Config.ARGB_8888)
@@ -83,7 +85,7 @@ class MonetEngine(private val context: Context) {
 
     private fun createColorScheme(seedColor: Int, darkTheme: Boolean): ThemeColors {
         val seedHsl = FloatArray(3)
-        android.graphics.ColorUtils.colorToHSL(seedColor, seedHsl)
+        ColorUtils.colorToHSL(seedColor, seedHsl)
 
         val primaryPalette = TonalPalette(seedHsl[0], max(seedHsl[1], 0.45f))
         val secondaryPalette = TonalPalette(seedHsl[0], max(seedHsl[1] * 0.55f, 0.18f))
@@ -171,7 +173,7 @@ class MonetEngine(private val context: Context) {
                 95 -> 0.96f; 99 -> 0.99f; 100 -> 1.00f
                 else -> toneValue / 100f
             }
-            return ColorUtils.hslToColor(hue, saturation, lightness)
+            return ColorUtils.HSLToColor(floatArrayOf(hue, saturation.coerceIn(0f, 1f), lightness.coerceIn(0f, 1f)))
         }
     }
 
@@ -182,13 +184,6 @@ class MonetEngine(private val context: Context) {
     }
 
     private fun harmonize(h: Float, s: Float, l: Float, hueShift: Float, satScale: Float): Int {
-        return ColorUtils.hslToColor(rotateHue(h, hueShift), s * satScale, l)
-    }
-}
-
-object ColorUtils {
-    fun hslToColor(hue: Float, saturation: Float, lightness: Float): Int {
-        val hsl = floatArrayOf(hue, saturation.coerceIn(0f, 1f), lightness.coerceIn(0f, 1f))
-        return Color.HSVToColor(hsl)
+        return ColorUtils.HSLToColor(floatArrayOf(rotateHue(h, hueShift), (s * satScale).coerceIn(0f, 1f), l.coerceIn(0f, 1f)))
     }
 }
