@@ -22,16 +22,16 @@ android {
         aidl = true
     }
 
-    kotlin {
-        jvmToolchain(17)
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 dependencies {
-    implementation("androidx.core:core-ktx:1.16.0")
+    implementation(libs.androidx.core.ktx)
 }

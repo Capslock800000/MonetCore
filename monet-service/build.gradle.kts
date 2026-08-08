@@ -31,34 +31,32 @@ android {
         compose = true
     }
 
-    kotlin {
-        jvmToolchain(17)
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 dependencies {
     implementation(project(":monet-api"))
 
-    val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
+    val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    implementation("androidx.compose.material3:material3")
+    implementation(libs.androidx.compose.material3)
 
-    implementation("androidx.activity:activity-compose:1.10.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
-
-    implementation("androidx.core:core-ktx:1.16.0")
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.core.ktx)
     implementation("androidx.palette:palette:1.0.0")
 }
