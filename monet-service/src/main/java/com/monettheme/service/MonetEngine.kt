@@ -4,9 +4,9 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.ColorUtils
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
+import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
 import com.monettheme.api.ThemeColors
