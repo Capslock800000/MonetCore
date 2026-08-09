@@ -1,5 +1,6 @@
 package com.monettheme.service
 
+import android.annotation.SuppressLint
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
@@ -99,6 +100,7 @@ class MonetEngine(private val context: Context) {
     /**
      * 提取种子色 — Android 12+ 用系统 API，低版本用官方 Celebi + Score
      */
+    @SuppressLint("MissingPermission")
     private fun extractSeedColor(): Int {
         // Android 12+: 使用系统 WallpaperColors API（官方原生）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

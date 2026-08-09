@@ -158,7 +158,7 @@ fun ServiceScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Monet Theme Service", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = scheme.primary,
                     titleContentColor = scheme.onPrimary
                 )
