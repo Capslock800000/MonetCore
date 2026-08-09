@@ -39,24 +39,37 @@ class MainActivity : ComponentActivity() {
 
     private val engine by lazy { MonetEngine(this) }
     private val _themeState = MutableStateFlow<ThemeColors?>(null)
+    private val prefs by lazy { getSharedPreferences("monet_prefs", MODE_PRIVATE) }
+
+    companion object {
+        private const val PREF_SEED_COLOR = "seed_color"
+        private const val PREF_IS_DARK = "is_dark"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        lifecycleScope.launch {
+            val colors = withContext(Dispatchers.Default) {
+                loadSavedTheme()
+            }
+            _themeState.update { colors }
+        }
+
         setContent {
             val theme by _themeState.collectAsStateWithLifecycle()
-            val isDark = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                    Configuration.UI_MODE_NIGHT_YES
 
             val imagePicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.GetContent()
             ) { uri: Uri? ->
-                uri?.let { processImageUri(it, isDark) }
-            }
-
-            LaunchedEffect(isDark) {
-                refreshTheme(isDark)
+                uri?.let {
+                    // ← 修复：使用当前主题状态的 isDarkTheme，而非系统配置
+                    val dark = _themeState.value?.isDarkTheme
+                        ?: ((LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                                Configuration.UI_MODE_NIGHT_YES)
+                    processImageUri(it, dark)
+                }
             }
 
             theme?.let { colors ->
@@ -79,6 +92,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun loadSavedTheme(): ThemeColors {
+        val savedSeed = prefs.getInt(PREF_SEED_COLOR, -1)
+        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        val savedDark = prefs.getBoolean(PREF_IS_DARK, systemDark)
+
+        return if (savedSeed != -1) {
+            engine.generateFromColor(savedSeed, savedDark)
+        } else {
+            engine.generateFromWallpaper(savedDark)
+        }
+    }
+
     private fun processImageUri(uri: Uri, dark: Boolean) {
         lifecycleScope.launch {
             val colors = withContext(Dispatchers.IO) {
@@ -95,6 +121,10 @@ class MainActivity : ComponentActivity() {
                     engine.generateFromWallpaper(dark)
                 }
             }
+            prefs.edit()
+                .putInt(PREF_SEED_COLOR, colors.seedColor)
+                .putBoolean(PREF_IS_DARK, colors.isDarkTheme)
+                .apply()
             _themeState.update { colors }
         }
     }
@@ -102,8 +132,14 @@ class MainActivity : ComponentActivity() {
     private fun refreshTheme(dark: Boolean) {
         lifecycleScope.launch {
             val colors = withContext(Dispatchers.Default) {
-                engine.generateFromWallpaper(dark)
+                val savedSeed = prefs.getInt(PREF_SEED_COLOR, -1)
+                if (savedSeed != -1) {
+                    engine.generateFromColor(savedSeed, dark)
+                } else {
+                    engine.generateFromWallpaper(dark)
+                }
             }
+            prefs.edit().putBoolean(PREF_IS_DARK, dark).apply()
             _themeState.update { colors }
         }
     }

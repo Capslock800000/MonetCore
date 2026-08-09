@@ -9,23 +9,24 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.core.graphics.drawable.toBitmap
-import androidx.palette.graphics.Palette
 import com.google.android.material.color.utilities.DynamicScheme
 import com.google.android.material.color.utilities.Hct
 import com.google.android.material.color.utilities.MaterialDynamicColors
+import com.google.android.material.color.utilities.QuantizerCelebi
+import com.google.android.material.color.utilities.Score
 import com.google.android.material.color.utilities.SchemeTonalSpot
 import com.monettheme.api.ThemeColors
 
 private const val TAG = "MonetEngine"
 
 /**
- * Monet 颜色引擎 — 基于 Google 官方 HCT 实现
+ * Monet 颜色引擎 — 100% Google 官方 HCT + Celebi 量化 + Score 评分实现
  *
- * - Android 12+ (API 31): 优先使用系统 WallpaperColors 提取 seed
- * - Android 9-11 (API 28-30): Palette API 提取 seed + HCT 生成
- * - 手动图片: 直接提取 seed + HCT 生成
+ * - Android 12+ (API 31): 系统 WallpaperColors API 提取 seed
+ * - Android 9-11 (API 28-30): QuantizerCelebi + Score 官方算法提取 seed
+ * - 手动图片: QuantizerCelebi + Score 官方算法提取 seed
  *
- * 核心依赖: com.google.android.material:material-color-utilities
+ * 核心依赖: com.google.android.material:material:1.12.0
  * 色彩空间: HCT (Hue-Chroma-Tone) — 基于 CAM16 感知模型
  */
 class MonetEngine(private val context: Context) {
@@ -53,12 +54,11 @@ class MonetEngine(private val context: Context) {
     }
 
     /**
-     * 从 Bitmap 生成主题
+     * 从 Bitmap 生成主题 — 使用官方 QuantizerCelebi + Score 提取种子色
      */
     fun generateFromBitmap(bitmap: Bitmap, darkTheme: Boolean): ThemeColors {
         Log.d(TAG, "generateFromBitmap, size=${bitmap.width}x${bitmap.height}")
-        val palette = Palette.from(bitmap).maximumColorCount(32).generate()
-        val seedColor = extractFromPalette(palette)
+        val seedColor = extractSeedFromBitmap(bitmap)
         Log.d(TAG, "bitmap seed=#${Integer.toHexString(seedColor)}")
         return generateFromColor(seedColor, darkTheme)
     }
@@ -96,8 +96,11 @@ class MonetEngine(private val context: Context) {
 
     // ==================== 私有方法 ====================
 
+    /**
+     * 提取种子色 — Android 12+ 用系统 API，低版本用官方 Celebi + Score
+     */
     private fun extractSeedColor(): Int {
-        // Android 12+: 使用系统 WallpaperColors API
+        // Android 12+: 使用系统 WallpaperColors API（官方原生）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
                 val colors = wallpaperManager.getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
@@ -108,11 +111,11 @@ class MonetEngine(private val context: Context) {
                     return color
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "getWallpaperColors failed, fallback to Palette", e)
+                Log.w(TAG, "getWallpaperColors failed, fallback to Celebi", e)
             }
         }
 
-        // Android 9-11: 使用 Palette API
+        // Android 9-11: 使用官方 QuantizerCelebi + Score 算法
         return try {
             val drawable = wallpaperManager.drawable
             if (drawable == null) {
@@ -125,22 +128,36 @@ class MonetEngine(private val context: Context) {
                 else -> drawable.toBitmap(256, 256, Bitmap.Config.ARGB_8888)
             }
 
-            val palette = Palette.from(bitmap).maximumColorCount(32).generate()
-            val color = extractFromPalette(palette)
-            Log.d(TAG, "Palette seed=#${Integer.toHexString(color)}")
-            color
+            val seedColor = extractSeedFromBitmap(bitmap)
+            Log.d(TAG, "Celebi+Score seed=#${Integer.toHexString(seedColor)}")
+            seedColor
         } catch (e: Exception) {
             Log.e(TAG, "extractSeedColor failed", e)
             DEFAULT_SEED
         }
     }
 
-    private fun extractFromPalette(palette: Palette): Int {
-        return palette.vibrantSwatch?.rgb
-            ?: palette.lightVibrantSwatch?.rgb
-            ?: palette.darkVibrantSwatch?.rgb
-            ?: palette.dominantSwatch?.rgb
-            ?: DEFAULT_SEED
+    /**
+     * 官方 Monet 图片种子色提取算法：
+     * 1. 缩小到 128×128
+     * 2. QuantizerCelebi 量化 → Map<color, population>
+     * 3. Score 评分排序 → 取最高分
+     */
+    private fun extractSeedFromBitmap(bitmap: Bitmap): Int {
+        // Step 1: 缩小到 128×128（官方推荐尺寸）
+        val scaled = Bitmap.createScaledBitmap(bitmap, 128, 128, true)
+        val width = scaled.width
+        val height = scaled.height
+        val pixels = IntArray(width * height)
+        scaled.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        // Step 2: Celebi 量化（官方默认 maxColors = 128）
+        val colorToPopulation = QuantizerCelebi.quantize(pixels, 128)
+
+        // Step 3: Score 评分排序（官方默认 desired = 4, fallback = Google Blue）
+        val rankedColors = Score.score(colorToPopulation)
+
+        return rankedColors.firstOrNull() ?: DEFAULT_SEED
     }
 
     /**
