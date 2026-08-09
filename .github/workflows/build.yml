@@ -1,15 +1,19 @@
-name: Build Monet Theme Service
+name: Build and Release
 
 on:
   push:
     branches: [main, master, develop]
   pull_request:
     branches: [main, master]
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Release Assets 上传需要
 
     steps:
       - name: Checkout repository
@@ -34,12 +38,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build signed APK
+      - name: Build all modules
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew :monet-service:assembleRelease --no-daemon --stacktrace
+        run: ./gradlew build --no-daemon --stacktrace
 
       - name: Upload monet-service APK
         uses: actions/upload-artifact@v4
@@ -53,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: monet-api-aar
-          path: monet-api/build/outputs/aar/*.aar
+          path: monet-api/build/outputs/aar/*-release.aar
           if-no-files-found: warn
           retention-days: 30
 
@@ -61,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: monet-client-aar
-          path: monet-client/build/outputs/aar/*.aar
+          path: monet-client/build/outputs/aar/*-release.aar
           if-no-files-found: warn
           retention-days: 30
 
@@ -75,3 +79,26 @@ jobs:
             **/build/outputs/logs/
           if-no-files-found: ignore
           retention-days: 7
+
+      # ── Release Assets 上传（仅在手动 Release 时触发）──────
+      - name: Prepare Release Assets
+        if: github.event_name == 'release'
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          mkdir -p release-assets
+
+          cp monet-service/build/outputs/apk/release/*.apk              "release-assets/MonetCore-Service-${VERSION}.apk"
+
+          cp monet-api/build/outputs/aar/*-release.aar              "release-assets/MonetCore-API-${VERSION}.aar"
+
+          cp monet-client/build/outputs/aar/*-release.aar              "release-assets/MonetCore-Client-${VERSION}.aar"
+
+          ls -la release-assets/
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: release-assets/*
+          token: ${{ secrets.GITHUB_TOKEN }}

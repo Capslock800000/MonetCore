@@ -1,22 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 自定义权限：只有 Service APK 声明 -->
+    <permission
+        android:name="com.monettheme.permission.GENERATE_THEME"
+        android:protectionLevel="normal"
+        android:label="Generate Monet Theme"
+        android:description="Allows the app to generate Monet dynamic themes" />
+
+    <uses-permission android:name="com.monettheme.permission.GENERATE_THEME" />
+
     <application
+        android:name=".MonetServiceApplication"
+        android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-        android:label="@string/app_name">
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MonetService">
+
+        <service
+            android:name=".MonetThemeService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="com.monettheme.permission.GENERATE_THEME">
+            <intent-filter>
+                <action android:name="com.monettheme.action.GENERATE_THEME" />
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".MainActivity"
-            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.MonetService">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
     </application>
 
 </manifest>
