@@ -1,6 +1,6 @@
 # MonetCore
 
-[![Build Status](https://github.com/Capslock800000/MonetCore/actions/workflows/ci.yml/badge.svg)](https://github.com/Capslock800000/MonetCore/actions)
+[![Build Status](https://github.com/Capslock800000/MonetCore/actions/workflows/build.yml/badge.svg)](https://github.com/Capslock800000/MonetCore/actions)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.10-purple.svg)](https://kotlinlang.org/)
 [![API](https://img.shields.io/badge/API-28%2B-brightgreen.svg)](https://developer.android.com/about/versions/9)
