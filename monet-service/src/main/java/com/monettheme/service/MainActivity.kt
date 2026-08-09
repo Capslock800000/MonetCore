@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +39,11 @@ class MainActivity : ComponentActivity() {
     private val engine by lazy { MonetEngine(this) }
     private val _themeState = MutableStateFlow<ThemeColors?>(null)
     private val prefs by lazy { getSharedPreferences("monet_prefs", MODE_PRIVATE) }
+
+    // ← 彻底移出 Compose：普通属性，回调中安全读取
+    private val isSystemDark: Boolean
+        get() = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
 
     companion object {
         private const val PREF_SEED_COLOR = "seed_color"
@@ -60,18 +64,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val theme by _themeState.collectAsStateWithLifecycle()
 
-            // ← 修复：在 Composable 上下文中读取系统配置，存为普通变量
-            val systemDark = remember {
-                (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                        Configuration.UI_MODE_NIGHT_YES
-            }
-
             val imagePicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.GetContent()
             ) { uri: Uri? ->
                 uri?.let {
-                    // 回调中不再调用 Compose API，使用普通变量
-                    val dark = _themeState.value?.isDarkTheme ?: systemDark
+                    // ← 只读普通变量，零 Compose API
+                    val dark = _themeState.value?.isDarkTheme ?: isSystemDark
                     processImageUri(it, dark)
                 }
             }
@@ -98,9 +96,7 @@ class MainActivity : ComponentActivity() {
 
     private fun loadSavedTheme(): ThemeColors {
         val savedSeed = prefs.getInt(PREF_SEED_COLOR, -1)
-        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
-        val savedDark = prefs.getBoolean(PREF_IS_DARK, systemDark)
+        val savedDark = prefs.getBoolean(PREF_IS_DARK, isSystemDark)
 
         return if (savedSeed != -1) {
             engine.generateFromColor(savedSeed, savedDark)
