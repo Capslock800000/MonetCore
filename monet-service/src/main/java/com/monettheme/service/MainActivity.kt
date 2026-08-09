@@ -60,14 +60,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             val theme by _themeState.collectAsStateWithLifecycle()
 
+            // ← 修复：在 Composable 上下文中读取系统配置，存为普通变量
+            val systemDark = remember {
+                (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                        Configuration.UI_MODE_NIGHT_YES
+            }
+
             val imagePicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.GetContent()
             ) { uri: Uri? ->
                 uri?.let {
-                    // ← 修复：使用当前主题状态的 isDarkTheme，而非系统配置
-                    val dark = _themeState.value?.isDarkTheme
-                        ?: ((LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                                Configuration.UI_MODE_NIGHT_YES)
+                    // 回调中不再调用 Compose API，使用普通变量
+                    val dark = _themeState.value?.isDarkTheme ?: systemDark
                     processImageUri(it, dark)
                 }
             }
