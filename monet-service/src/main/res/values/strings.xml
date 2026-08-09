@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Monet Theme Service</string>
+    <string name="permission_label_generate_theme">Generate Monet Theme</string>
+    <string name="permission_description_generate_theme">Allows the app to generate Monet dynamic themes</string>
 </resources>

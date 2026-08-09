@@ -5,8 +5,8 @@
     <permission
         android:name="com.monettheme.permission.GENERATE_THEME"
         android:protectionLevel="normal"
-        android:label="Generate Monet Theme"
-        android:description="Allows the app to generate Monet dynamic themes" />
+        android:label="@string/permission_label_generate_theme"
+        android:description="@string/permission_description_generate_theme" />
 
     <uses-permission android:name="com.monettheme.permission.GENERATE_THEME" />
 
@@ -17,7 +17,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MonetService">
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
         <service
             android:name=".MonetThemeService"
@@ -32,7 +32,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.MonetService">
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
