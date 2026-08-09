@@ -1,0 +1,61 @@
+name: Release Assets
+
+on:
+  workflow_run:
+    workflows: ["Build and Publish MonetCore"]
+    types:
+      - completed
+
+jobs:
+  upload-release-assets:
+    name: Upload Release Assets
+    runs-on: ubuntu-latest
+    # 仅当触发 build 的事件是 release 且 build 成功时才执行
+    if: github.event.workflow_run.event == 'release' && github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release bundle from build workflow
+        uses: actions/download-artifact@v4
+        with:
+          name: monetcore-release-bundle
+          run-id: ${{ github.event.workflow_run.id }}
+          path: release-bundle/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version and rename artifacts
+        id: rename
+        run: |
+          VERSION=$(cat release-bundle/version.txt | sed 's/^v//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+
+          mkdir -p release-assets
+
+          for f in release-bundle/*.apk; do
+            [ -e "$f" ] || continue
+            cp "$f" "release-assets/MonetCore-Service-${VERSION}.apk"
+            echo "  → MonetCore-Service-${VERSION}.apk"
+          done
+
+          for f in release-bundle/*monet-api*-release.aar; do
+            [ -e "$f" ] || continue
+            cp "$f" "release-assets/MonetCore-API-${VERSION}.aar"
+            echo "  → MonetCore-API-${VERSION}.aar"
+          done
+
+          for f in release-bundle/*monet-client*-release.aar; do
+            [ -e "$f" ] || continue
+            cp "$f" "release-assets/MonetCore-Client-${VERSION}.aar"
+            echo "  → MonetCore-Client-${VERSION}.aar"
+          done
+
+          ls -la release-assets/
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.rename.outputs.version }}
+          files: release-assets/*
+          token: ${{ secrets.GITHUB_TOKEN }}

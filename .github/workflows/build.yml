@@ -43,6 +43,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew build --no-daemon --stacktrace
 
+      # ── 日常构建产物（调试用）──────────────────────────
       - name: Upload monet-service APK
         uses: actions/upload-artifact@v4
         with:
@@ -76,6 +77,25 @@ jobs:
             **/build/reports/
             **/build/outputs/logs/
           if-no-files-found: ignore
+          retention-days: 7
+
+      # ── Release 专用产物包（供 release.yml 消费）──────
+      - name: Prepare release bundle
+        if: github.event_name == 'release'
+        run: |
+          mkdir -p release-bundle
+          cp monet-service/build/outputs/apk/release/*.apk release-bundle/
+          cp monet-api/build/outputs/aar/*-release.aar release-bundle/
+          cp monet-client/build/outputs/aar/*-release.aar release-bundle/
+          echo "${{ github.event.release.tag_name }}" > release-bundle/version.txt
+
+      - name: Upload release bundle
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: monetcore-release-bundle
+          path: release-bundle/
+          if-no-files-found: error
           retention-days: 7
 
   publish:
